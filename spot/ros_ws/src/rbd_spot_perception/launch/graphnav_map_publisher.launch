@@ -1,37 +1,57 @@
 <launch>
+  <!-- Define arguments that can be overridden when launching -->
+  <!-- The name of the map being visualized -->
   <arg name="map_name" default="cit_first_floor"/>
-  <!-- The frame_id of the point cloud -->
+
+  <!-- The frame_id used for the point cloud (for RViz and TF integration) -->
   <arg name="frame_id" default="graphnav_map"/>
-  <!-- The topic that the point cloud will be published at -->
+
+  <!-- The topic where the point cloud data will be published -->
   <arg name="topic" default="graphnav_points"/>
+
+  <!-- The rate (Hz) at which the point cloud will be published -->
   <arg name="rate" default="1.0"/>
-  <arg name="output" default="screen" />
-  <!-- parameters for outlier removal -->
+
+  <!-- Output type for nodes (e.g., screen or log file) -->
+  <arg name="output" default="screen"/>
+
+  <!-- Parameters for the statistical outlier removal filter -->
   <arg name="mean_k" default="10"/>
   <arg name="stdev" default="0.05"/>
 
+  <!-- Set a ROS parameter to pass the map name -->
   <param name="map_name" value="$(arg map_name)"/>
 
+  <!-- Launch the graphnav_map_publisher node -->
   <node pkg="rbd_spot_perception" type="graphnav_map_publisher"
         name="graphnav_map_publisher" output="screen"
         args="$(find rbd_spot_perception)/maps/bosdyn/$(arg map_name)">
+    <!-- Pass frame_id, topic, and rate as parameters to the node -->
     <param name="frame_id" value="$(arg frame_id)"/>
     <param name="topic" value="$(arg topic)"/>
     <param name="rate" value="$(arg rate)"/>
   </node>
 
+  <!-- Launch the graphnav_publish_waypoints.py node -->
+  <!-- This node publishes waypoints for visualization -->
   <node pkg="rbd_spot_perception" type="graphnav_publish_waypoints.py"
         name="graphnav_waypoints_publisher"
         args="--path $(find rbd_spot_perception)/maps/bosdyn/$(arg map_name) --viz" output="$(arg output)">
   </node>
 
-  <!-- Statistical outlier removal -->
+  <!-- Launch a Nodelet manager for managing Point Cloud Library (PCL) operations -->
   <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="$(arg output)" />
+
+  <!-- Launch a PCL Statistical Outlier Removal filter -->
+  <!-- This removes noisy points from the point cloud -->
   <node pkg="nodelet" type="nodelet"
         name="statistical_filter"
         args="load pcl/StatisticalOutlierRemoval pcl_manager">
+    <!-- Parameters for the outlier removal filter -->
     <param name="mean_k" value="$(arg mean_k)" />
     <param name="stddev" value="$(arg stdev)" />
+
+    <!-- Remap topics for input and output -->
     <remap from="~input" to="/graphnav_map_publisher/graphnav_points"/>
     <remap from="~output" to="/graphnav_map_publisher/graphnav_points_filtered"/>
   </node>
